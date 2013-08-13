@@ -3,7 +3,7 @@ package Log::Dispatch::ZMQ;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use parent 'Log::Dispatch::Output';
 use ZMQ ();
@@ -22,10 +22,14 @@ sub new {
         croak "ZMQ::Constants doesn't export '$params{zmq_sock_type}'";
     }
 
-    bless {
+    my $self = bless {
        _zmq_sock_type => $sock_type,
        _zmq_bind      => $params{zmq_bind},
     } => $class;
+
+    $self->_basic_init(%params);
+
+    return $self;
 }
 
 my ($_zmq_sock,$_zmq_ctx);
@@ -41,11 +45,23 @@ sub _zmq {
 
 }
 
+sub _zmq_send {
+    my $self = shift;
+    if ( $ZMQ::BACKEND eq 'ZMQ::LibZMQ2' ) {
+        return $self->_zmq->send(@_);
+    }
+    elsif ( $ZMQ::BACKEND eq 'ZMQ::LibZMQ3' ) {
+        return $self->_zmq->sendmsg(@_);
+    }
+
+    die "This module can only handle ZMQ::LibZMQ2 and ZMQ::LibZMQ3 backends";
+}
+
 sub log_message {
     my $self   = shift;
     my %params = @_;
 
-    $self->_zmq->send($params{message});
+    $self->_zmq_send($params{message});
     return;
 }
 
@@ -77,6 +93,18 @@ Nothing.
 =head1 BUGS
 
 Please report any bugs on L<http://rt.cpan.org>
+
+=head1 SEE ALSO
+
+=over
+
+=item * L<ZMQ>
+
+=item * L<Alien::ZMQ>
+
+=item * L<ZeroMQ>
+
+=back
 
 =head1 AUTHOR
 
